@@ -1,7 +1,7 @@
 # Description
 This is the main API used for the Train A Pup app. This AWS-SAM Repo is responsible for registering users, handling user notifications, events, logins, and everything that the user can do on the main app. ([REACT NATIVE PROJECT](https://github.com/train-a-pup/tap-react))
 
-I have left this project in pursuit of another project but this project shows my talents and what I can do in a couple of months.
+I have left this project in pursuit of another project but this project shows my talents and what I can do in a couple of months. As a result of departing from this app, I have purged everything that is used and is secret. There are files and lines of code missing for my own safety.
 
 ## Screenshots
 ### Homepage
