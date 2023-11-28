@@ -1,0 +1,200 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  tap-api
+
+  External API for Train-A-Pup
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+
+Resources:
+  SharedFolder:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - nodejs16.x
+      ContentUri: ./mainApi/shared
+  PostUserFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/user/
+      Handler: postUser.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/service-role/savedDoggos_scan-role-0er7m82z
+      Events:
+        PostUser:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /user
+            Method: post
+  RemoveUserFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/user/
+      Handler: removeUser.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/service-role/savedDoggos_scan-role-0er7m82z
+      Events:
+        RemoveUser:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /userRemove
+            Method: post
+  PostSchedulerStateMachine:
+    Type: AWS::Serverless::StateMachine # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Type: EXPRESS
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName:
+              !Ref PostSchedulerFunction
+        - CloudWatchLogsFullAccess
+      Events:
+        PostScheduler:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /scheduler
+            Method: post
+      Definition:
+        StartAt: WaitTillScheduled
+        States:
+          WaitTillScheduled:
+            Type: Wait
+            TimestampPath: "$.dueDate"
+            # Seconds: 5
+            Next: ActionEvent
+          ActionEvent:
+            Type: Task
+            Resource: arn:aws:lambda:us-east-1:082503240469:function:tap-api-PostSchedulerFunction-OKS3HrqOZ4og
+            End: true
+  PostSchedulerFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/scheduler/
+      Handler: scheduler.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/service-role/savedDoggos_scan-role-0er7m82z
+  GetUserFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/user/
+      Handler: getUser.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/service-role/savedDoggos_scan-role-0er7m82z
+      Events:
+        GetUser:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /user
+            Method: get
+  PostEventFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/scheduler/
+      Handler: postEvent.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Policies:
+        - StepFunctionsExecutionPolicy:
+            StateMachineName:
+              !Ref PostSchedulerFunction
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/StepFunctionFullAccess
+      Events:
+        PostEvent:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /user/events
+            Method: post
+  GetTrickFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/tricks/
+      Handler: getTrick.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/service-role/savedDoggos_scan-role-0er7m82z
+      Events:
+        GetTrick:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /trick
+            Method: get
+  GetTricksFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: mainApi/tricks/
+      Handler: getTricks.handler
+      Layers:
+        - !Ref SharedFolder
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Role: arn:aws:iam::082503240469:role/service-role/savedDoggos_scan-role-0er7m82z
+      Events:
+        GetTricks:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /tricks
+            Method: get
+
+Outputs:
+  # Scheduler should only be called from an inside function
+  PostSchedulerFunction:
+    Value: !GetAtt PostSchedulerFunction.Arn
+
+  GetUserAPI:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/tap"
+  GetUserFunction:
+    Value: !GetAtt GetUserFunction.Arn
+
+  PostEventAPI:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/tap"
+  PostEventFunction:
+    Value: !GetAtt PostEventFunction.Arn
+
+
+  GetTrickAPI:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/tap"
+  GetTrickFunction:
+    Value: !GetAtt GetTrickFunction.Arn
+
+  GetTricksAPI:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/tap"
+  GetTricksFunction:
+    Value: !GetAtt GetTricksFunction.Arn
+
+  PostUserApi:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/tap"
+  PostUserFunction:
+    Value: !GetAtt PostUserFunction.Arn
+
+  RemoveUserApi:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/tap"
+  RemoveUserFunction:
+    Value: !GetAtt RemoveUserFunction.Arn
